@@ -9,10 +9,10 @@ module sub_mod (
 );
 
     wire [64:0] carry;
-    assign carry[0] = 1'b0;
+    assign carry[0] = 1'b1;
 
     wire [63:0] b_neg;
-    assign b_neg = ~b + 64'b1;  // Two's complement for subtraction
+    assign b_neg = ~b;  // Two's complement for subtraction
 
     //res = a - b;
 

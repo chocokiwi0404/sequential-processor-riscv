@@ -8,10 +8,10 @@ module sltu_mod (
 );
 
     wire [64:0] carry;
-    assign carry[0] = 1'b0;
+    assign carry[0] = 1'b1;
 
     wire [63:0] b_neg;
-    assign b_neg = ~b + 64'b1;  
+    assign b_neg = ~b;  
 
     wire [63:0] diff;
     reg [63:0] res_wire;
