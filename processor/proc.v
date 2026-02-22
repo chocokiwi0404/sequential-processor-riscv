@@ -5,6 +5,7 @@
 `include "alu.v"
 `include "control_unit.v"
 `include "data_memory.v"
+`include "pc.v"
 
 module RISCV_Processor (
     input clk,
@@ -34,6 +35,13 @@ module RISCV_Processor (
     // Data Memory Wires [cite: 92, 372]
     wire [63:0] mem_read_data;
 
+    pc pcc (
+         .clk(clk),
+         .reset(reset),
+         .pc_in(pc_in),
+         .pc_out(pc_out)
+    );
+
     // --- PC Update Logic ---
     // PC + 4 calculation for sequential execution [cite: 56, 104, 336, 384]
     assign pc_plus_4 = pc_out + 4;
@@ -44,17 +52,6 @@ module RISCV_Processor (
     
     // PC Source Mux: Choose between PC+4 or Branch Target [cite: 56, 336]
     assign pc_in = (branch & zero_flag) ? branch_target : pc_plus_4;
-
-    // --- Program Counter (PC) Register ---
-    // 64-bit register updated every clock cycle [cite: 55, 57, 335, 337]
-    reg [63:0] pc_reg;
-    always @(posedge clk or posedge reset) begin
-        if (reset)
-            pc_reg <= 64'b0;
-        else
-            pc_reg <= pc_in;
-    end
-    assign pc_out = pc_reg;
 
     // --- Module Instantiations ---
 
