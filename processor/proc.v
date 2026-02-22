@@ -35,23 +35,14 @@ module RISCV_Processor (
     // Data Memory Wires [cite: 92, 372]
     wire [63:0] mem_read_data;
 
-    pc pcc (
+  pc pcc (
          .clk(clk),
          .reset(reset),
-         .pc_in(pc_in),
+         .imm_data(imm_data),
+         .branch(branch),
+         .zero_flag(zero_flag),
          .pc_out(pc_out)
     );
-
-    // --- PC Update Logic ---
-    // PC + 4 calculation for sequential execution [cite: 56, 104, 336, 384]
-    assign pc_plus_4 = pc_out + 4;
-    
-    // Branch Target calculation: PC + Immediate [cite: 79, 104, 359, 384]
-    // Note: your imm_gen already handles the left-shift by 1 for B-type instructions
-    assign branch_target = pc_out + imm_data;
-    
-    // PC Source Mux: Choose between PC+4 or Branch Target [cite: 56, 336]
-    assign pc_in = (branch & zero_flag) ? branch_target : pc_plus_4;
 
     // --- Module Instantiations ---
 
