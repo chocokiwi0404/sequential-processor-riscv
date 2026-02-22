@@ -32,7 +32,7 @@ module seq_tb;
 
         // Run for a specific number of cycles
         // Based on your sample output, 15 cycles are expected [cite: 275]
-        for (cycle_count = 0; cycle_count < 126; cycle_count = cycle_count + 1) begin
+        for (cycle_count = 0; cycle_count < 51; cycle_count = cycle_count + 1) begin
             @(posedge clk);
         end
 
