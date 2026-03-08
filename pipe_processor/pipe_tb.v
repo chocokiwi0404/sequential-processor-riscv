@@ -29,11 +29,14 @@ module seq_tb;
         // Apply reset for 2 cycles
         #20;
         reset = 0;
+        #5;
 
         // Run for a specific number of cycles
         // Based on your sample output, 15 cycles are expected [cite: 275]
-        for (cycle_count = 0; cycle_count < 51; cycle_count = cycle_count + 1) begin
-            @(posedge clk);
+        for (cycle_count = 0; cycle_count < 69; cycle_count = cycle_count + 1) begin
+            @(posedge clk) begin
+                 $display("Cycle %0d : PC = %h", cycle_count, dut.pc_out);
+            end;
         end
 
         // Wait a small amount for the final write-back to settle
@@ -45,7 +48,13 @@ module seq_tb;
             for (i = 0; i < 32; i = i + 1) begin
                 // Accessing the internal regfile within the registers instance
                 $fwrite(f, "%h\n", dut.registers.regfile[i]);
+
             end
+
+           
+            
+
+
             // Append the final cycle count in decimal 
             $fwrite(f, "%0d\n", cycle_count);
             $fclose(f);

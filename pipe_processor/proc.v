@@ -19,50 +19,14 @@ module RISCV_Processor (
 wire [63:0] pc_out;
 wire [31:0] instruction;
 
-////////////////////////////////////////////////////////////
-//////////////////// LOAD HAZARD SIGNAL ////////////////////
-////////////////////////////////////////////////////////////
-
-// This signal becomes 1 when a load-use hazard occurs.
-//
-// Example hazard:
-//
-//    ld x5,0(x1)
-//    add x6,x5,x2
-//
-// The add instruction needs x5 before the load has finished
-// accessing memory.
-
-wire load_use_hazard;
-
-////////////////////////////////////////////////////////////
-//////////////////// PC STALL CONTROL //////////////////////
-////////////////////////////////////////////////////////////
-
-// If a load hazard occurs, the PC should NOT advance.
-// That means the same instruction will be fetched again.
-
-wire pc_write_enable;
-
-assign pc_write_enable = ~load_use_hazard;
-
-////////////////////////////////////////////////////////////
-//////////////////// PC MODULE /////////////////////////////
-////////////////////////////////////////////////////////////
-
 pc pcc (
     .clk(clk),
     .reset(reset),
-    .pc_write_enable(pc_write_enable), // PC updates only when no hazard
     .imm_data(id_ex_imm),
     .branch(ex_mem_branch),
     .zero_flag(ex_mem_zero),
     .pc_out(pc_out)
 );
-
-////////////////////////////////////////////////////////////
-//////////////////// INSTRUCTION MEMORY ////////////////////
-////////////////////////////////////////////////////////////
 
 instruction_memory imem (
     .clk(clk),
@@ -75,9 +39,6 @@ instruction_memory imem (
 /////////////////// IF / ID PIPELINE REG ///////////////////
 ////////////////////////////////////////////////////////////
 
-// This register stores instruction fetched in IF stage
-// so it can be decoded in the next cycle.
-
 reg [31:0] if_id_instruction;
 reg [63:0] if_id_pc;
 
@@ -88,16 +49,6 @@ begin
         if_id_instruction <= 0;
         if_id_pc <= 0;
     end
-
-    // During load hazard we STALL the pipeline
-    // so we do NOT update IF/ID register.
-
-    else if(load_use_hazard)
-    begin
-        if_id_instruction <= if_id_instruction;
-        if_id_pc <= if_id_pc;
-    end
-
     else
     begin
         if_id_instruction <= instruction;
@@ -109,17 +60,12 @@ end
 /////////////////////// ID STAGE ///////////////////////////
 ////////////////////////////////////////////////////////////
 
-// Control signals
 wire [1:0] alu_op;
 wire branch, mem_read, mem_to_reg, mem_write, alu_src, reg_write;
 
-// Register outputs
 wire [63:0] read_data1, read_data2;
-
-// Immediate output
 wire [63:0] imm_data;
 
-// Control unit decodes instruction
 control_unit control (
     .opcode(if_id_instruction[6:0]),
     .Branch(branch),
@@ -131,7 +77,6 @@ control_unit control (
     .ALUOp(alu_op)
 );
 
-// Register file read
 regblock registers (
     .clk(clk),
     .reset(reset),
@@ -144,7 +89,6 @@ regblock registers (
     .read_data2(read_data2)
 );
 
-// Immediate generation
 imm_gen ig (
     .instr(if_id_instruction),
     .imm(imm_data)
@@ -178,31 +122,10 @@ always @(posedge clk or posedge reset)
 begin
     if(reset)
     begin
-        id_ex_reg_write <= 0;
-        id_ex_mem_read <= 0;
-        id_ex_mem_write <= 0;
-        id_ex_branch <= 0;
+        id_ex_read_data1 <= 0;
+        id_ex_read_data2 <= 0;
+        id_ex_imm <= 0;
     end
-
-    ////////////////////////////////////////////////////////
-    // INSERT BUBBLE DURING LOAD HAZARD
-    ////////////////////////////////////////////////////////
-    //
-    // Instead of allowing the dependent instruction to
-    // proceed into EX stage, we convert it into a NOP
-    // by clearing control signals.
-
-    else if(load_use_hazard)
-    begin
-        id_ex_reg_write <= 0;
-        id_ex_mem_read <= 0;
-        id_ex_mem_write <= 0;
-        id_ex_branch <= 0;
-        id_ex_mem_to_reg <= 0;
-        id_ex_alu_src <= 0;
-        id_ex_alu_op <= 0;
-    end
-
     else
     begin
         id_ex_read_data1 <= read_data1;
@@ -228,66 +151,43 @@ begin
 end
 
 ////////////////////////////////////////////////////////////
-//////////////// LOAD HAZARD DETECTION /////////////////////
-////////////////////////////////////////////////////////////
-
-// Hazard occurs if:
-//
-// Instruction in EX stage is a LOAD
-// AND
-// Destination register matches source of next instruction
-
-assign load_use_hazard =
-    id_ex_mem_read &&
-    (
-        (id_ex_rd == if_id_instruction[19:15]) ||
-        (id_ex_rd == if_id_instruction[24:20])
-    );
-
-////////////////////////////////////////////////////////////
 /////////////////////// FORWARDING UNIT ////////////////////
 ////////////////////////////////////////////////////////////
-
-// Forwarding logic remains unchanged
-// (already handles ALU hazards)
 
 reg [1:0] forwardA;
 reg [1:0] forwardB;
 
-always @(*) begin
+// always @(*) begin
 
-    forwardA = 2'b00;
-    forwardB = 2'b00;
+//     forwardA = 2'b00;
+//     forwardB = 2'b00;
 
-    if (ex_mem_reg_write &&
-        (ex_mem_rd != 0) &&
-        (ex_mem_rd == id_ex_rs1))
-            forwardA = 2'b10;
+//     if (ex_mem_reg_write &&
+//         (ex_mem_rd != 0) &&
+//         (ex_mem_rd == id_ex_rs1))
+//             forwardA = 2'b10;
 
-    if (ex_mem_reg_write &&
-        (ex_mem_rd != 0) &&
-        (ex_mem_rd == id_ex_rs2))
-            forwardB = 2'b10;
+//     if (ex_mem_reg_write &&
+//         (ex_mem_rd != 0) &&
+//         (ex_mem_rd == id_ex_rs2))
+//             forwardB = 2'b10;
 
-    if (mem_wb_reg_write &&
-        (mem_wb_rd != 0) &&
-        !(ex_mem_reg_write && (ex_mem_rd != 0) && (ex_mem_rd == id_ex_rs1)) &&
-        (mem_wb_rd == id_ex_rs1))
-            forwardA = 2'b01;
+//     if (mem_wb_reg_write &&
+//         (mem_wb_rd != 0) &&
+//         (mem_wb_rd == id_ex_rs1))
+//             forwardA = 2'b01;
 
-    if (mem_wb_reg_write &&
-        (mem_wb_rd != 0) &&
-        !(ex_mem_reg_write && (ex_mem_rd != 0) && (ex_mem_rd == id_ex_rs2)) &&
-        (mem_wb_rd == id_ex_rs2))
-            forwardB = 2'b01;
+//     if (mem_wb_reg_write &&
+//         (mem_wb_rd != 0) &&
+//         (mem_wb_rd == id_ex_rs2))
+//             forwardB = 2'b01;
 
-end
+// end
 
 ////////////////////////////////////////////////////////////
 /////////////////////// EX STAGE ///////////////////////////
 ////////////////////////////////////////////////////////////
 
-// ALU control
 wire [3:0] alu_control;
 
 alucon ac (
@@ -297,23 +197,19 @@ alucon ac (
     .ALUControl(alu_control)
 );
 
-// Values forwarded to ALU
 reg [63:0] alu_operand_A;
 reg [63:0] alu_operand_B_pre_mux;
 
 always @(*) begin
 
-    // Default values
-    alu_operand_A = id_ex_read_data1; // first operand going to ALU
-    alu_operand_B_pre_mux = id_ex_read_data2; // second operand before mux , deciding whether it is register value or immediate
+    alu_operand_A = id_ex_read_data1;
+    alu_operand_B_pre_mux = id_ex_read_data2;
 
-    // Forwarding for operand A
     case(forwardA)
         2'b10: alu_operand_A = ex_mem_alu_result;
         2'b01: alu_operand_A = write_back_data;
     endcase
 
-    // Forwarding for operand B
     case(forwardB)
         2'b10: alu_operand_B_pre_mux = ex_mem_alu_result;
         2'b01: alu_operand_B_pre_mux = write_back_data;
@@ -321,11 +217,9 @@ always @(*) begin
 
 end
 
-// ALU input mux (immediate vs register)
 wire [63:0] alu_operand_B =
     (id_ex_alu_src) ? id_ex_imm : alu_operand_B_pre_mux;
 
-// ALU
 wire [63:0] alu_result;
 wire zero_flag;
 
