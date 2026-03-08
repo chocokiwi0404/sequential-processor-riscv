@@ -1,33 +1,64 @@
 module pc (
     input wire clk,
     input wire reset,
+
+    // NEW: controls whether PC updates this cycle
+    input wire pc_write_enable,
+
     input wire [63:0] imm_data,
     input wire branch,
     input wire zero_flag,
+
     output reg [63:0] pc_out
 );
 
-    // Internal wires for the update logic
-    wire [63:0] pc_plus_4;
-    wire [63:0] branch_target;
-    wire [63:0] next_pc;
+    ////////////////////////////////////////////////////////////
+    //////////////////// PC UPDATE LOGIC ///////////////////////
+    ////////////////////////////////////////////////////////////
 
-    // --- PC Update Logic ---
-    // PC + 4 calculation for sequential execution
+    // PC + 4 calculation for normal sequential execution
+    wire [63:0] pc_plus_4;
     assign pc_plus_4 = pc_out + 64'd4;
-    
-    // Branch Target calculation: PC + Immediate
+
+    // Branch target computation
+    // Target = PC + immediate offset
+    wire [63:0] branch_target;
     assign branch_target = pc_out + imm_data;
-    
-    // PC Source Mux: Choose between PC+4 or Branch Target
+
+    // Select next PC based on branch decision
+    // If branch instruction AND condition satisfied → jump
+    // Otherwise continue sequential execution
+
+    wire [63:0] next_pc;
     assign next_pc = (branch & zero_flag) ? branch_target : pc_plus_4;
 
-    // --- Sequential Logic ---
+    ////////////////////////////////////////////////////////////
+    ////////////////// SEQUENTIAL UPDATE ///////////////////////
+    ////////////////////////////////////////////////////////////
+
     always @(posedge clk) begin
+
+        // Reset condition
         if (reset) begin
             pc_out <= 64'b0;
-        end else begin
+        end
+
+        // NORMAL UPDATE
+        // PC only updates when pc_write_enable is high
+        // This allows the hazard detection unit to STALL
+        // the pipeline during load-use hazards
+
+        else if (pc_write_enable) begin
             pc_out <= next_pc;
+        end
+
+        // STALL CONDITION
+        // If pc_write_enable = 0 we simply hold the current PC value
+        // This causes the IF stage to refetch the same instruction
+        // for one more cycle
+
+        else begin
+            pc_out <= pc_out;
         end
     end
 
