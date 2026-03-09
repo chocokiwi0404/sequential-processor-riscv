@@ -7,41 +7,28 @@ module pc (
     output reg [63:0] pc_out
 );
 
-////////////////////////////////////////////////////////////
-//////////////////// PC UPDATE LOGIC ///////////////////////
-////////////////////////////////////////////////////////////
+    // Internal wires for the update logic
+    wire [63:0] pc_plus_4;
+    wire [63:0] branch_target;
+    wire [63:0] next_pc;
 
-// Sequential execution → PC + 4
-wire [63:0] pc_plus_4;
-assign pc_plus_4 = pc_out + 64'd4;
+    // --- PC Update Logic ---
+    // PC + 4 calculation for sequential execution
+    assign pc_plus_4 = pc_out + 64'd4;
+    
+    // Branch Target calculation: PC + Immediate
+    assign branch_target = pc_out + imm_data;
+    
+    // PC Source Mux: Choose between PC+4 or Branch Target
+    assign next_pc = (branch & zero_flag) ? branch_target : pc_plus_4;
 
-// Branch target address
-wire [63:0] branch_target;
-assign branch_target = pc_out + imm_data;
-
-// Select next PC
-// If branch instruction AND condition true → jump
-// Otherwise continue sequential execution
-
-wire [63:0] next_pc;
-assign next_pc = (branch && zero_flag) ? branch_target : pc_plus_4;
-
-////////////////////////////////////////////////////////////
-//////////////////// SEQUENTIAL LOGIC //////////////////////
-////////////////////////////////////////////////////////////
-
-always @(posedge clk) begin
-
-    // Reset initializes PC to 0
-    if (reset) begin
-        pc_out <= 64'b0;
+    // --- Sequential Logic ---
+    always @(posedge clk) begin
+        if (reset) begin
+            pc_out <= 64'b0;
+        end else begin
+            pc_out <= next_pc;
+        end
     end
-
-    // Normal update every cycle
-    else begin
-        pc_out <= next_pc;
-    end
-
-end
 
 endmodule
