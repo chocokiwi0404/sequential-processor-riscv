@@ -54,7 +54,7 @@ module pipe_tb;
 
 
         // Wait a small amount for the final write-back to settle
-        #100;
+        #20;
 
         // Write to register_file.txt as required [cite: 119, 123, 399, 403]
         f = $fopen("register_file.txt", "w");
