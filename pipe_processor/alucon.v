@@ -7,7 +7,14 @@ module alucon (
     always @(*) begin
         case(ALUOp) 
             2'b00: ALUControl = 4'b0000;
-            2'b01: ALUControl = 4'b1000; 
+            2'b01: begin // Branch instructions
+                case(funct3)
+                    3'b000: ALUControl = 4'b1000; // beq -> SUB
+                    3'b100: ALUControl = 4'b0010; // blt -> SLT
+                    3'b101: ALUControl = 4'b0010; // bge -> SLT
+                    default: ALUControl = 4'b1000;
+                endcase
+            end 
             2'b10: begin                
                 case(funct3)
                     3'b000: ALUControl = (funct7_30 && ALUOp[1]) ? 4'b1000 : 4'b0000; 

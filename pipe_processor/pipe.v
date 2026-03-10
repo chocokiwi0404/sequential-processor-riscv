@@ -18,6 +18,7 @@ module pipe_processor (
     wire [63:0] pc_plus_4;
     wire [63:0] pc_next;
     wire [31:0] if_instruction;
+    wire flag_fetch;
 
     assign pc_plus_4 = pc_reg + 64'd4;
 
@@ -25,7 +26,8 @@ module pipe_processor (
         .clk(clk),
         .reset(reset),
         .addr(pc_reg),
-        .instr(if_instruction)
+        .instr(if_instruction),
+        .flag_fetch(flag_fetch)
     );
 
     // IF/ID pipeline register
@@ -189,8 +191,22 @@ module pipe_processor (
         .zero_flag(ex_zero_flag)
     );
 
-    assign ex_branch_taken = idex_branch && ex_zero_flag;
-    assign ex_branch_target = idex_pc + idex_imm;
+    reg ex_branch_condition;
+    
+    always @(*) begin
+        if (idex_branch) begin
+            case (idex_funct3)
+                3'b000: ex_branch_condition = ex_zero_flag;          // beq: true if a - b == 0
+                3'b100: ex_branch_condition = (ex_alu_result == 64'd1); // blt: true if a < b (slt output is 1)
+                3'b101: ex_branch_condition = (ex_alu_result == 64'd0); // bge: true if a >= b (slt output is 0)
+                default: ex_branch_condition = 1'b0;
+            endcase
+        end else begin
+            ex_branch_condition = 1'b0;
+        end
+    end
+
+    assign ex_branch_taken = idex_branch && ex_branch_condition;    assign ex_branch_target = idex_pc + idex_imm;
 
     // EX/MEM pipeline register
     reg [63:0] exmem_alu_result;
@@ -253,10 +269,16 @@ module pipe_processor (
     wire flush_pipeline;
     wire stall_pipeline;
 
-    assign flush_pipeline = ex_branch_taken;
-    assign stall_pipeline = load_use_hazard && !flush_pipeline;
+     
+wire predicted_taken;
 
-    assign pc_next = flush_pipeline ? ex_branch_target : pc_plus_4;
+assign predicted_taken = (ex_branch_target < 0);
+
+assign flush_pipeline = predicted_taken ^ ex_branch_taken;
+
+assign stall_pipeline = load_use_hazard && !flush_pipeline;
+
+assign pc_next = predicted_taken ? ex_branch_target : pc_plus_4;
 
     // ============================================================
     // Sequential update of PC + pipeline registers
@@ -335,6 +357,8 @@ module pipe_processor (
                 idex_reg_write <= 1'b0;
                 idex_alu_op <= 2'b00;
                 idex_instr <= 32'd0;
+            
+            
             end else if (stall_pipeline) begin
                 idex_pc <= 64'd0;
                 idex_rs1_data <= 64'd0;
