@@ -8,6 +8,7 @@ module pipe_tb;
     integer f;
     integer cycle_num;
     integer cycle_count;
+    reg stop_clock;
 
     // Instantiate the Top-Level Processor
     pipe_processor dut (
@@ -17,9 +18,19 @@ module pipe_tb;
 
     // Clock generation: 10ns period
     initial begin
+        
         clk = 0;
-        forever #5 clk = ~clk;
-    end
+        stop_clock = 0;
+
+        if(stop_clock == 0)
+        begin
+            forever begin 
+                clk = ~clk;
+                #5;
+            end
+        end
+         
+     end
 
     // Simulation sequence
     initial begin
@@ -48,13 +59,8 @@ module pipe_tb;
         if(dut.flag_fetch==0)
         begin
              cycle_num = 501;     
-        end
+             stop_clock = 1;
 
-    end
-
-
-        // Wait a small amount for the final write-back to settle
-        #20;
 
         // Write to register_file.txt as required [cite: 119, 123, 399, 403]
         f = $fopen("register_file.txt", "w");
@@ -70,6 +76,12 @@ module pipe_tb;
 
         $display("Simulation finished. register_file.txt generated.");
         $finish;
+        end
+
+    end
+
+
+      
     end
 
 endmodule

@@ -357,6 +357,8 @@ assign pc_next = predicted_taken ? ex_branch_target : pc_plus_4;
                 idex_reg_write <= 1'b0;
                 idex_alu_op <= 2'b00;
                 idex_instr <= 32'd0;
+
+                pc_reg <= ex_branch_target; // Update PC to branch target immediately on flush
             
             
             end else if (stall_pipeline) begin
