@@ -20,7 +20,7 @@ module RISCV_Processor (
     
     // Control Signals [cite: 72, 352]
     wire [1:0] alu_op;
-    wire branch, mem_read, mem_to_reg, mem_write, alu_src, reg_write;
+    wire branch, mem_read, mem_to_reg, mem_write, alu_src, reg_write, flag_fetch;
     
     // Register File Wires [cite: 59, 339]
     wire [63:0] read_data1, read_data2;
@@ -35,7 +35,12 @@ module RISCV_Processor (
     // Data Memory Wires [cite: 92, 372]
     wire [63:0] mem_read_data;
 
-  pc pcc (
+
+
+
+    // --- Module Instantiations ---
+
+ pc pcc (
          .clk(clk),
          .reset(reset),
          .imm_data(imm_data),
@@ -44,15 +49,17 @@ module RISCV_Processor (
          .pc_out(pc_out)
     );
 
-    // --- Module Instantiations ---
-
-    // Instruction Memory: Fetches 32-bit Big-Endian instructions [cite: 66, 67, 108, 346, 347, 388]
+ // Instruction Memory: Fetches 32-bit Big-Endian instructions [cite: 66, 67, 108, 346, 347, 388]
     instruction_memory imem (
         .clk(clk),
         .reset(reset),
         .addr(pc_out),
-        .instr(instruction)
+        .instr(instruction),
+	.flag_fetch(flag_fetch)
     );
+
+
+   
 
     // Control Unit: Decodes opcode to generate control signals [cite: 70, 72, 350, 352]
     control_unit control (
@@ -118,5 +125,7 @@ module RISCV_Processor (
 
     // Write-back Mux: Select between ALU Result and Memory Read Data [cite: 102, 382]
     assign write_back_data = (mem_to_reg) ? mem_read_data : alu_result;
+
+ 
 
 endmodule

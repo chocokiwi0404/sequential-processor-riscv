@@ -6,7 +6,9 @@ module seq_tb;
     reg reset;
     integer i;
     integer f;
+    integer cycle_num;
     integer cycle_count;
+    reg stop_clock;
 
     // Instantiate the Top-Level Processor
     RISCV_Processor dut (
@@ -16,14 +18,30 @@ module seq_tb;
 
     // Clock generation: 10ns period
     initial begin
+        
+
         clk = 0;
-        forever #5 clk = ~clk;
-    end
+        stop_clock = 0;
+
+        if(stop_clock == 0)
+        begin
+            forever begin 
+		
+		#5;
+                clk = ~clk;
+
+                
+            end
+        end
+         
+     end
 
     // Simulation sequence
     initial begin
         // Initialize signals
         reset = 1;
+        cycle_num = 0;
+
         cycle_count = 0;
 
         // Apply reset for 2 cycles
@@ -32,13 +50,26 @@ module seq_tb;
 
         // Run for a specific number of cycles
         // Based on your sample output, 15 cycles are expected [cite: 275]
-        for (cycle_count = 0; cycle_count < 51; cycle_count = cycle_count + 1) begin
-            @(posedge clk);
+        
+    for (cycle_num = 0; cycle_num < 500; cycle_num = cycle_num + 1) begin
+        
+        @(posedge clk);
+
+        $display("\n Cycle no. %0d , instruction = %h, flag_fetch = %b", cycle_num , dut.instruction, dut.flag_fetch);
+    
+
+        cycle_count <= cycle_count + 1;
+
+        if(dut.flag_fetch==0)
+        begin
+             cycle_num = 501;     
+             stop_clock = 1;
+
         end
 
-        // Wait a small amount for the final write-back to settle
-        #5;
+    end
 
+	#20;
         // Write to register_file.txt as required [cite: 119, 123, 399, 403]
         f = $fopen("register_file.txt", "w");
         if (f) begin
@@ -53,6 +84,8 @@ module seq_tb;
 
         $display("Simulation finished. register_file.txt generated.");
         $finish;
+
+      
     end
 
 endmodule
